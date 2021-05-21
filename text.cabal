@@ -53,7 +53,7 @@ license:        BSD2
 license-file:   LICENSE
 author:         Bryan O'Sullivan <bos@serpentine.com>
 maintainer:     Haskell Text Team <andrew.lelechenko@gmail.com>, Core Libraries Committee
-copyright:      2009-2011 Bryan O'Sullivan, 2008-2009 Tom Harper
+copyright:      2009-2011 Bryan O'Sullivan, 2008-2009 Tom Harper, 2021 Andrew Lelechenko
 category:       Data, Text
 build-type:     Simple
 tested-with:    GHC==9.0.1,

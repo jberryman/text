@@ -283,13 +283,13 @@ equal Empty _     = False
 equal _ Empty     = False
 equal (Chunk a as) (Chunk b bs) =
     case compare lenA lenB of
-      LT -> a == (T.takeWord16 lenA b) &&
-            as `equal` Chunk (T.dropWord16 lenA b) bs
+      LT -> a == (T.takeWord8 lenA b) &&
+            as `equal` Chunk (T.dropWord8 lenA b) bs
       EQ -> a == b && as `equal` bs
-      GT -> T.takeWord16 lenB a == b &&
-            Chunk (T.dropWord16 lenB a) as `equal` bs
-  where lenA = T.lengthWord16 a
-        lenB = T.lengthWord16 b
+      GT -> T.takeWord8 lenB a == b &&
+            Chunk (T.dropWord8 lenB a) as `equal` bs
+  where lenA = T.lengthWord8 a
+        lenB = T.lengthWord8 b
 
 instance Eq Text where
     (==) = equal
@@ -1082,7 +1082,7 @@ takeWhileEnd :: (Char -> Bool) -> Text -> Text
 takeWhileEnd p = takeChunk empty . L.reverse . toChunks
   where takeChunk acc []     = acc
         takeChunk acc (t:ts)
-          | T.lengthWord16 t' < T.lengthWord16 t
+          | T.lengthWord8 t' < T.lengthWord8 t
                              = chunk t' acc
           | otherwise        = takeChunk (Chunk t' acc) ts
           where t' = T.takeWhileEnd p t

@@ -71,7 +71,7 @@ text_ arr off len =
   let c    = A.unsafeIndex arr off
   in assert (len >= 0) .
      assert (off >= 0) .
-     assert (len == 0 || c < 0xDC00 || c > 0xDFFF) $
+     assert (len == 0 || c < 0x80 || c >= 0xC0) $
 #endif
      Text arr off len
 {-# INLINE text_ #-}
@@ -191,19 +191,14 @@ int64ToInt32 = fromIntegral
 
 -- $internals
 --
--- Internally, the 'Text' type is represented as an array of 'Word16'
--- UTF-16 code units. The offset and length fields in the constructor
+-- Internally, the 'Text' type is represented as an array of 'Word8'
+-- UTF-8 code units. The offset and length fields in the constructor
 -- are in these units, /not/ units of 'Char'.
 --
 -- Invariants that all functions must maintain:
 --
--- * Since the 'Text' type uses UTF-16 internally, it cannot represent
+-- * Since the 'Text' type uses UTF-8 internally, it cannot represent
 --   characters in the reserved surrogate code point range U+D800 to
 --   U+DFFF. To maintain this invariant, the 'safe' function maps
 --   'Char' values in this range to the replacement character (U+FFFD,
 --   \'&#xfffd;\').
---
--- * A leading (or \"high\") surrogate code unit (0xD800–0xDBFF) must
---   always be followed by a trailing (or \"low\") surrogate code unit
---   (0xDC00-0xDFFF). A trailing surrogate code unit must always be
---   preceded by a leading surrogate code unit.
