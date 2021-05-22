@@ -284,24 +284,24 @@ mapAccumL ::
 #if defined(ASSERTS)
   HasCallStack =>
 #endif
-  (a -> Char -> (a,Char)) -> a -> Stream Char -> (a, Text)
+  (a -> Char -> (a, Char)) -> a -> Stream Char -> (a, Text)
 mapAccumL f z0 (Stream next0 s0 len) = (nz, I.text na 0 nl)
   where
-    (na,(nz,nl)) = A.run2 (A.new mlen >>= \arr -> outer arr mlen z0 s0 0)
-      where mlen = upperBound 4 len
+    (na, (nz, nl)) = A.run2 (A.new mlen >>= \arr -> outer arr mlen z0 s0 0)
+      where mlen = upperBound 4 len + 3
     outer arr top = loop
       where
         loop !z !s !i =
             case next0 s of
-              Done          -> return (arr, (z,i))
+              Done          -> return (arr, (z, i))
               Skip s'       -> loop z s' i
               Yield x s'
-                | j >= top  -> {-# SCC "mapAccumL/resize" #-} do
+                -- simply check for the worst case
+                | i + 4 > top  -> {-# SCC "mapAccumL/resize" #-} do
                                let top' = (top + 1) `shiftL` 1
                                arr' <- A.resizeM arr top'
                                outer arr' top' z s i
-                | otherwise -> do d <- unsafeWrite arr i c
-                                  loop z' s' (i+d)
-                where (z',c) = f z x
-                      j = i + U8.utf8Length c - 1
+                | otherwise -> do cLen <- unsafeWrite arr i c
+                                  loop z' s' (i + cLen)
+                where (z', c) = f z x
 {-# INLINE [0] mapAccumL #-}
