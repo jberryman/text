@@ -69,12 +69,21 @@ utf8Length c = word64ToInt $ 4 - (magic `unsafeShiftR` wordToInt (bitLength `shi
     magic = 0b0101010101101010101111111111111111
 {-# INLINE utf8Length #-}
 
+-- This is a branchless version of
+-- utf8LengthByLeader w
+--   | w < 0x80  = 1
+--   | w < 0xE0  = 2
+--   | w < 0xF0  = 3
+--   | otherwise = 4
+--
+-- c `xor` I# (c# <=# 0#) is a branchless equivalent of c `max` 1.
+-- It is crucial to write c# <=# 0# and not c# ==# 0#, otherwise
+-- GHC is tempted to "optimize" by introduction of branches.
 utf8LengthByLeader :: Word8 -> Int
-utf8LengthByLeader w
-  | w < 0x80  = 1
-  | w < 0xE0  = 2
-  | w < 0xF0  = 3
-  | otherwise = 4
+utf8LengthByLeader w = c `xor` I# (c# <=# 0#)
+  where
+    !c@(I# c#) = countLeadingZeros (complement w)
+{-# INLINE utf8LengthByLeader #-}
 
 ord2 :: Char -> (Word8,Word8)
 ord2 c =
