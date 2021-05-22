@@ -76,6 +76,7 @@ flag developer
 
 library
   c-sources:    cbits/cbits.c
+                cbits/length.c
   include-dirs: include
   hs-source-dirs: src
 
@@ -140,6 +141,10 @@ library
   if flag(developer)
     ghc-options: -fno-ignore-asserts
     cpp-options: -DASSERTS
+
+  -- https://gitlab.haskell.org/ghc/ghc/-/issues/19900
+  if os(windows)
+    extra-libraries: gcc_s
 
   default-language: Haskell2010
   default-extensions:
