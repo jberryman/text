@@ -191,16 +191,15 @@ copyI :: MArray s               -- ^ Destination
       -> Int                    -- ^ Destination offset
       -> Array                  -- ^ Source
       -> Int                    -- ^ Source offset
-      -> Int                    -- ^ First offset in destination /not/ to
-                                -- copy (i.e. /not/ length)
+      -> Int                    -- ^ Count
       -> ST s ()
-copyI (MArray dst#) dstOff@(I# dstOff#) (Array src#) (I# srcOff#) top@(I# top#)
+copyI (MArray dst#) dstOff@(I# dstOff#) (Array src#) (I# srcOff#) count@(I# count#)
 #if defined(ASSERTS)
-  | top < dstOff = error $
-    "copyI: top must be >= dstOff, but " ++ show top ++ " < " ++ show dstOff
+  | count < 0 = error $
+    "copyI: count must be >= 0, but got " ++ show count
 #endif
   | otherwise = ST $ \s1# ->
-    case copyByteArray# src# srcOff# dst# dstOff# (top# -# dstOff#) s1# of
+    case copyByteArray# src# srcOff# dst# dstOff# count# s1# of
       s2# -> (# s2#, () #)
 {-# INLINE copyI #-}
 

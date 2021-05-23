@@ -459,7 +459,7 @@ append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
       x = do
         arr <- A.new len
         A.copyI arr 0 arr1 off1 len1
-        A.copyI arr len1 arr2 off2 len
+        A.copyI arr len1 arr2 off2 len2
         return arr
 {-# NOINLINE append #-}
 
@@ -692,10 +692,10 @@ replace needle@(Text _      _      neeLen)
       let loop (i:is) o d = do
             let d0 = d + i - o
                 d1 = d0 + repLen
-            A.copyI marr d  hayArr (hayOff+o) d0
-            A.copyI marr d0 repArr repOff d1
+            A.copyI marr d  hayArr (hayOff+o) (i - o)
+            A.copyI marr d0 repArr repOff repLen
             loop is (i + neeLen) d1
-          loop []     o d = A.copyI marr d hayArr (hayOff+o) len
+          loop []     o d = A.copyI marr d hayArr (hayOff+o) (len - d)
       loop ixs 0 0
       return marr
 
@@ -907,8 +907,7 @@ concat ts = case ts' of
     go :: ST s (A.MArray s)
     go = do
       arr <- A.new len
-      let step i (Text a o l) =
-            let !j = i + l in A.copyI arr i a o j >> return j
+      let step i (Text a o l) = A.copyI arr i a o l >> return (i + l)
       foldM step 0 ts' >> return arr
 
 -- | /O(n)/ Map a function over a 'Text' that results in a 'Text', and
