@@ -186,6 +186,7 @@ fromString str = Builder $ \k (Buffer p0 o0 u0 l0) ->
     let loop !marr !o !u !l [] = k (Buffer marr o u l)
         loop marr o u l s@(c:cs)
             | l <= 3 = do
+                A.shrinkM marr (o + u)
                 arr <- A.unsafeFreeze marr
                 let !t = Text arr o u
                 marr' <- A.new chunkSize
@@ -220,7 +221,11 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
 -- | /O(n)./ Extract a lazy @Text@ from a @Builder@ with a default
 -- buffer size.  The construction work takes place if and when the
 -- relevant part of the lazy @Text@ is demanded.
-toLazyText :: Builder -> L.Text
+toLazyText ::
+#if defined(ASSERTS)
+  HasCallStack =>
+#endif
+  Builder -> L.Text
 toLazyText = toLazyTextWith smallChunkSize
 
 -- | /O(n)./ Extract a lazy @Text@ from a @Builder@, using the given
@@ -229,13 +234,21 @@ toLazyText = toLazyTextWith smallChunkSize
 --
 -- If the initial buffer is too small to hold all data, subsequent
 -- buffers will be the default buffer size.
-toLazyTextWith :: Int -> Builder -> L.Text
+toLazyTextWith ::
+#if defined(ASSERTS)
+  HasCallStack =>
+#endif
+  Int -> Builder -> L.Text
 toLazyTextWith chunkSize m = L.fromChunks (runST $
   newBuffer chunkSize >>= runBuilder (m `append` flush) (const (return [])))
 
 -- | /O(1)./ Pop the strict @Text@ we have constructed so far, if any,
 -- yielding a new chunk in the result lazy @Text@.
-flush :: Builder
+flush ::
+#if defined(ASSERTS)
+  HasCallStack =>
+#endif
+  Builder
 flush = Builder $ \ k buf@(Buffer p o u l) ->
     if u == 0
     then k buf
