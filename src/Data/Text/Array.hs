@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types,
     RecordWildCards, UnboxedTuples, UnliftedFFITypes #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 -- |
 -- Module      : Data.Text.Array
@@ -53,11 +54,31 @@ import GHC.Exts hiding (toList)
 import GHC.ST (ST(..), runST)
 import GHC.Word (Word8(..))
 import Prelude hiding (length, read)
+import qualified Language.Haskell.TH.Lib as TH
+import qualified Language.Haskell.TH.Syntax as TH
 
 -- | Immutable array type.
 --
 -- The 'Array' constructor is exposed since @text-1.1.1.3@
 data Array = Array { aBA :: ByteArray# }
+
+instance TH.Lift Array where
+  lift a@(Array a#) = TH.appE (TH.appE (TH.varE 'fromAddr) addr) (TH.lift l)
+    where
+      l = I# (sizeofByteArray# a#)
+      addr = TH.litE $ TH.StringPrimL $ toList a 0 l
+#if MIN_VERSION_template_haskell(2,17,0)
+  liftTyped = TH.unsafeCodeCoerce . TH.lift
+#elif MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = TH.unsafeTExpCoerce . TH.lift
+#endif
+
+fromAddr :: Addr# -> Int -> Array
+fromAddr addr (I# len) = runST $ ST $ \s1# ->
+  case newByteArray# len s1# of
+    (# s2#, marr #) -> case copyAddrToByteArray# addr marr 0# len s2# of
+      s3# -> case unsafeFreezeByteArray# marr s3# of
+        (# s4#, arr #) -> (# s4#, Array arr #)
 
 -- | Mutable array type, for use in the ST monad.
 --

@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples, TypeFamilies #-}
-{-# LANGUAGE TemplateHaskellQuotes #-}
 {-# LANGUAGE Trustworthy #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -237,8 +236,6 @@ import Data.Int (Int64)
 #endif
 import GHC.Base (eqInt, neInt, gtInt, geInt, ltInt, leInt)
 import qualified GHC.Exts as Exts
-import qualified Language.Haskell.TH.Lib as TH
-import qualified Language.Haskell.TH.Syntax as TH
 import Text.Printf (PrintfArg, formatArg, formatString)
 
 -- $setup
@@ -379,18 +376,6 @@ instance Data Text where
     1 -> k (z pack)
     _ -> P.error "gunfold"
   dataTypeOf _ = textDataType
-
--- | This instance has similar considerations to the 'Data' instance:
--- it preserves abstraction at the cost of inefficiency.
---
--- @since 1.2.4.0
-instance TH.Lift Text where
-  lift = TH.appE (TH.varE 'pack) . TH.stringE . unpack
-#if MIN_VERSION_template_haskell(2,17,0)
-  liftTyped = TH.unsafeCodeCoerce . TH.lift
-#elif MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = TH.unsafeTExpCoerce . TH.lift
-#endif
 
 -- | @since 1.2.2.0
 instance PrintfArg Text where

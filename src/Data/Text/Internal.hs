@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, UnboxedTuples #-}
+{-# LANGUAGE DeriveLift #-}
 {-# OPTIONS_HADDOCK not-home #-}
 
 -- |
@@ -52,13 +53,14 @@ import Data.Int (Int32, Int64)
 import Data.Text.Internal.Unsafe.Char (ord)
 import Data.Typeable (Typeable)
 import qualified Data.Text.Array as A
+import qualified Language.Haskell.TH.Syntax as TH
 
 -- | A space efficient, packed, unboxed Unicode text type.
 data Text = Text
     {-# UNPACK #-} !A.Array          -- payload (Word16 elements)
     {-# UNPACK #-} !Int              -- offset (units of Word16, not Char)
     {-# UNPACK #-} !Int              -- length (units of Word16, not Char)
-    deriving (Typeable)
+    deriving (Typeable, TH.Lift)
 
 -- | Smart constructor.
 text_ ::
