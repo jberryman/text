@@ -64,6 +64,7 @@ import Control.Monad.ST.Unsafe (unsafeIOToST, unsafeSTToIO)
 import Control.Exception (evaluate, try, throwIO, ErrorCall(ErrorCall))
 import Control.Monad.ST (runST)
 import Data.ByteString as B
+import qualified Data.ByteString.Internal as B
 import qualified Data.ByteString.Short.Internal as SBS
 import Data.Foldable (traverse_)
 import Data.Text.Encoding.Error (OnDecodeError, UnicodeException, strictDecode, lenientDecode)
@@ -78,7 +79,8 @@ import Foreign.C.Types (CSize)
 import Foreign.Marshal.Utils (with)
 import Foreign.Ptr (Ptr, minusPtr, nullPtr, plusPtr)
 import Foreign.Storable (Storable, peek, poke)
-import GHC.Base (MutableByteArray#, sizeofByteArray#, Int (I#))
+import GHC.Exts (MutableByteArray#, sizeofByteArray#, Int (I#), byteArrayContents#, unsafeCoerce#)
+import GHC.ForeignPtr (ForeignPtr(..), ForeignPtrContents(PlainPtr))
 import qualified Data.ByteString.Builder as B
 import qualified Data.ByteString.Builder.Internal as B hiding (empty, append)
 import qualified Data.ByteString.Builder.Prim as BP
@@ -436,9 +438,16 @@ encodeUtf8BuilderEscaped be =
 
 -- | Encode text using UTF-8 encoding.
 encodeUtf8 :: Text -> ByteString
-encodeUtf8 (Text (A.Array arr) off len)
+encodeUtf8 (Text arr off len)
   | len == 0  = B.empty
-  | otherwise = B.take len $ B.drop off $ SBS.fromShort $ SBS.SBS arr
+  -- It would be easier to use Data.ByteString.Short.fromShort and slice later,
+  -- but this is undesirable when len is significantly smaller than length arr.
+  | otherwise = unsafeDupablePerformIO $ do
+    marr@(A.MArray mba) <- unsafeSTToIO $ A.newPinned len
+    unsafeSTToIO $ A.copyI marr 0 arr off len
+    let fp = ForeignPtr (byteArrayContents# (unsafeCoerce# mba))
+                        (PlainPtr mba)
+    pure $ B.fromForeignPtr fp 0 len
 
 -- | Decode text from little endian UTF-16 encoding.
 decodeUtf16LEWith :: OnDecodeError -> ByteString -> Text
