@@ -75,7 +75,7 @@ import Data.Text.Internal.Unsafe.Char (unsafeWrite)
 import Data.Text.Show ()
 import Data.Text.Unsafe (unsafeDupablePerformIO)
 import Data.Word (Word8, Word32)
-import Foreign.C.Types (CSize(..), CInt(..))
+import Foreign.C.Types (CSize)
 import Foreign.Marshal.Utils (with)
 import Foreign.Ptr (Ptr, minusPtr, nullPtr, plusPtr)
 import Foreign.Storable (Storable, peek, poke)
@@ -133,13 +133,6 @@ decodeLatin1 bs = withBS bs aux where
       destLen <- c_decode_latin1 (A.maBA dest) src (src `plusPtr` len)
       return (dest, destLen)
 
-isValidBS :: ByteString -> Bool
-isValidBS bs = withBS bs aux
- where
-  aux fp len = unsafeDupablePerformIO $ unsafeWithForeignPtr fp $ \ptr -> do
-    ret <- c_is_valid_utf8 ptr (fromIntegral len)
-    pure $ ret /= 0
-
 -- | Decode a 'ByteString' containing UTF-8 encoded text.
 --
 -- __NOTE__: The replacement character returned by 'OnDecodeError'
@@ -153,9 +146,7 @@ decodeUtf8With ::
   HasCallStack =>
 #endif
   OnDecodeError -> ByteString -> Text
-decodeUtf8With onErr bs
-  | isValidBS bs = decodeASCII bs
-  | otherwise = withBS bs aux
+decodeUtf8With onErr bs = withBS bs aux
  where
   aux fp len = runText $ \done -> do
     let go dest = unsafeWithForeignPtr fp $ \ptr ->
@@ -551,6 +542,3 @@ foreign import ccall unsafe "_hs_text_decode_utf8_state" c_decode_utf8_with_stat
 
 foreign import ccall unsafe "_hs_text_decode_latin1" c_decode_latin1
     :: MutableByteArray# s -> Ptr Word8 -> Ptr Word8 -> IO Int
-
-foreign import ccall unsafe "_hs_text_is_valid_utf8" c_is_valid_utf8
-    :: Ptr Word8 -> CSize -> IO CInt
