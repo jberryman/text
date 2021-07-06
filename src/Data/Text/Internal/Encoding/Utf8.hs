@@ -67,15 +67,19 @@ utf8Length c = word64ToInt $ 4 - (magic `unsafeShiftR` wordToInt (bitLength `shi
     bitLength = intToWord (finiteBitSize (0 :: Int)) - intToWord (countLeadingZeros (ord c))
     magic :: Word64
     magic = 0b0101010101101010101111111111111111
+{-# INLINE utf8Length #-}
 
--- This is a version of
+-- This is a branchless version of
 -- utf8LengthByLeader w
 --   | w < 0x80  = 1
 --   | w < 0xE0  = 2
 --   | w < 0xF0  = 3
 --   | otherwise = 4
 utf8LengthByLeader :: Word8 -> Int
-utf8LengthByLeader w = max 1 (countLeadingZeros (maxBound - w))
+utf8LengthByLeader w = c `xor` I# (c# <=# 0#) -- c `max` 1
+  where
+    !c@(I# c#) = countLeadingZeros (complement w)
+{-# INLINE utf8LengthByLeader #-}
 
 ord2 :: Char -> (Word8,Word8)
 ord2 c =
@@ -99,6 +103,7 @@ ord3 c =
       x1 = intToWord8 $ (n `shiftR` 12) + 0xE0
       x2 = intToWord8 $ ((n `shiftR` 6) .&. 0x3F) + 0x80
       x3 = intToWord8 $ (n .&. 0x3F) + 0x80
+{-# INLINE ord3 #-}
 
 ord4 :: Char -> (Word8,Word8,Word8,Word8)
 ord4 c =

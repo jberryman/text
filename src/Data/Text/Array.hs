@@ -224,6 +224,7 @@ shrinkM (MArray marr) i@(I# newSize) = do
   ST $ \s1# ->
     case shrinkMutableByteArray# marr newSize s1# of
       s2# -> (# s2#, () #)
+{-# INLINE shrinkM #-}
 
 -- | Copy some elements of a mutable array.
 copyM :: MArray s               -- ^ Destination
