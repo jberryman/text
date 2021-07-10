@@ -91,6 +91,7 @@ ord2 c =
       n  = ord c
       x1 = intToWord8 $ (n `shiftR` 6) + 0xC0
       x2 = intToWord8 $ (n .&. 0x3F)   + 0x80
+{-# INLINE ord2 #-}
 
 ord3 :: Char -> (Word8,Word8,Word8)
 ord3 c =
@@ -117,6 +118,7 @@ ord4 c =
       x2 = intToWord8 $ ((n `shiftR` 12) .&. 0x3F) + 0x80
       x3 = intToWord8 $ ((n `shiftR` 6) .&. 0x3F) + 0x80
       x4 = intToWord8 $ (n .&. 0x3F) + 0x80
+{-# INLINE ord4 #-}
 
 chr2 :: Word8 -> Word8 -> Char
 chr2 (W8# x1#) (W8# x2#) = C# (chr# (z1# +# z2#))
