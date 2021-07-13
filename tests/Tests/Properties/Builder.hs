@@ -59,9 +59,7 @@ tb_decimal_big_word (Large (a::Word)) = tb_decimal a
 tb_decimal_big_word64 (Large (a::Word64)) = tb_decimal a
 
 tb_hex :: (Integral a, Show a) => a -> Property
-tb_hex n
-  | n >= 0 = TB.toLazyText (TB.hexadecimal n) === TL.pack (showHex n "")
-  | otherwise = expectFailure $ total $ TB.toLazyText $ TB.hexadecimal n
+tb_hex = (TB.toLazyText . TB.hexadecimal) `eq` (TL.pack . flip showHex "")
 
 tb_hexadecimal_integer (a::Integer) = tb_hex a
 tb_hexadecimal_int (a::Int) = tb_hex a

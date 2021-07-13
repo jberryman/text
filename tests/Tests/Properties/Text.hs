@@ -188,24 +188,16 @@ tl_find (applyFun -> p)      = L.find p      `eqP` TL.find p
 t_partition (applyFun -> p)  = L.partition p `eqP` (unpack2 . T.partition p)
 tl_partition (applyFun -> p) = L.partition p `eqP` (unpack2 . TL.partition p)
 
-sf_index_negative s (Negative i) = expectFailure $ total $ S.index (packS s) i
-sf_index_overflow s (NonNegative i) = expectFailure $ total $ S.index (packS s) (i + length s)
-sf_index (applyFun -> p) (NonEmpty s) (NonNegative i) = case L.length (L.filter p s) of
-  0 -> discard
-  l -> L.filter p s L.!! j === S.index (S.filter p (packS s)) j
-    where j = i `mod` l
-
-t_index_negative s (Negative i) = expectFailure $ total $ T.index s i
-t_index_overflow s (NonNegative i) = expectFailure $ total $ T.index (packS s) (i + length s)
-t_index (NonEmpty s) (NonNegative i) = s L.!! j === T.index (packS s) j
+sf_index (applyFun -> p) s i = ((L.filter p s L.!!) `eq` S.index (S.filter p $ packS s)) j
     where l = L.length s
-          j = i `mod` l
-
-tl_index_negative s (Negative i) = expectFailure $ total $ TL.index s i
-tl_index_overflow s (NonNegative i) = expectFailure $ total $ TL.index (packS s) (fromIntegral (i + length s))
-tl_index (NonEmpty s) (NonNegative i) = s L.!! j === TL.index (packS s) (fromIntegral j)
+          j = if l == 0 then 0 else i `mod` (3 * l) - l
+t_index s i       = ((s L.!!) `eq` T.index (packS s)) j
     where l = L.length s
-          j = i `mod` l
+          j = if l == 0 then 0 else i `mod` (3 * l) - l
+
+tl_index s i      = ((s L.!!) `eq` (TL.index (packS s) . fromIntegral)) j
+    where l = L.length s
+          j = if l == 0 then 0 else i `mod` (3 * l) - l
 
 t_findIndex (applyFun -> p) = L.findIndex p `eqP` T.findIndex p
 t_count (NotEmpty t)  = (subtract 1 . L.length . T.splitOn t) `eq` T.count t
@@ -332,14 +324,8 @@ testText =
     ],
 
     testGroup "indexing" [
-      testProperty "sf_index_negative" sf_index_negative,
-      testProperty "sf_index_overflow" sf_index_overflow,
       testProperty "sf_index" sf_index,
-      testProperty "t_index_negative" t_index_negative,
-      testProperty "t_index_overflow" t_index_overflow,
       testProperty "t_index" t_index,
-      testProperty "tl_index_negative" tl_index_negative,
-      testProperty "tl_index_overflow" tl_index_overflow,
       testProperty "tl_index" tl_index,
       testProperty "t_findIndex" t_findIndex,
       testProperty "t_count" t_count,
