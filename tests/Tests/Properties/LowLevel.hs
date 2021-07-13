@@ -48,8 +48,7 @@ t_mul a b = mulRef a b === eval mul a b
 
 t_dropWord8 m t = dropWord8 m t `T.isSuffixOf` t
 t_takeWord8 m t = takeWord8 m t `T.isPrefixOf` t
-t_take_drop_8 m t = T.append (takeWord8 n t) (dropWord8 n t) === t
-  where n = small m
+t_take_drop_8 (Small n) t = T.append (takeWord8 n t) (dropWord8 n t) === t
 t_use_from t = ioProperty $ (==t) <$> useAsPtr t fromPtr
 
 t_copy t = T.copy t === t
