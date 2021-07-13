@@ -37,9 +37,9 @@ t_latin1     = E.decodeLatin1 `eq` (T.pack . BC.unpack)
 tl_latin1    = EL.decodeLatin1 `eq` (TL.pack . BLC.unpack)
 
 t_utf8       = (E.decodeUtf8 . E.encodeUtf8) `eq` id
-t_utf8'      = (E.decodeUtf8' . E.encodeUtf8) `eq` (id . Right)
+t_utf8'      = (E.decodeUtf8' . E.encodeUtf8) `eq` Right
 tl_utf8      = (EL.decodeUtf8 . EL.encodeUtf8) `eq` id
-tl_utf8'     = (EL.decodeUtf8' . EL.encodeUtf8) `eq` (id . Right)
+tl_utf8'     = (EL.decodeUtf8' . EL.encodeUtf8) `eq` Right
 t_utf16LE    = (E.decodeUtf16LE . E.encodeUtf16LE) `eq` id
 tl_utf16LE   = (EL.decodeUtf16LE . EL.encodeUtf16LE) `eq` id
 t_utf16BE    = (E.decodeUtf16BE . E.encodeUtf16BE) `eq` id

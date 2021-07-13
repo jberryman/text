@@ -1,5 +1,6 @@
 -- | Test folds, scans, and unfolds
 
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
 
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
@@ -10,7 +11,7 @@ module Tests.Properties.Folds
 import Control.Arrow (second)
 import Data.Word (Word8, Word16)
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.QuickCheck (testProperty, Small(..), (===), applyFun, applyFun2)
+import Test.Tasty.QuickCheck (testProperty, Small(..), (===), applyFun, applyFun2, expectFailure, NonEmptyList(..), total)
 import Tests.QuickCheckUtils
 import qualified Data.List as L
 import qualified Data.Text as T
@@ -135,9 +136,9 @@ t_length_replicate (Small n) =
 tl_length_replicate (Small n) =
     (L.genericLength . L.concat . L.replicate n) `eqPSqrt` (TL.length . TL.replicate (fromIntegral n))
 
-tl_cycle n        = (L.take m . L.cycle) `eq`
-                    (unpackS . TL.take (fromIntegral m) . TL.cycle . packS)
-    where m = fromIntegral (n :: Word8)
+tl_cycle_empty = expectFailure $ total $ TL.cycle mempty
+tl_cycle (Small m) (NonEmpty xs) =
+    L.take m (L.cycle xs) === unpackS (TL.take (fromIntegral m) (TL.cycle (packS xs)))
 
 tl_iterate (applyFun -> f) n
                   = (L.take m . L.iterate f) `eq`
@@ -227,6 +228,7 @@ testFolds =
     ],
 
     testGroup "unfolds" [
+      testProperty "tl_cycle_empty" tl_cycle_empty,
       testProperty "tl_cycle" tl_cycle,
       testProperty "tl_iterate" tl_iterate,
       testProperty "t_unfoldr" t_unfoldr,

@@ -110,12 +110,11 @@ tl_splitAt n      = L.splitAt n   `eqP` (unpack2 . TL.splitAt (fromIntegral n))
 t_span (applyFun -> p)  = L.span p `eqP` (unpack2 . T.span p)
 tl_span (applyFun -> p) = L.span p `eqP` (unpack2 . TL.span p)
 
-t_breakOn_id s      = squid `eq` (uncurry T.append . T.breakOn s)
-  where squid t | T.null s  = error "empty"
-                | otherwise = t
-tl_breakOn_id s     = squid `eq` (uncurry TL.append . TL.breakOn s)
-  where squid t | TL.null s  = error "empty"
-                | otherwise = t
+t_breakOn_empty t = expectFailure $ total $ T.breakOn mempty t
+t_breakOn_id (NotEmpty s) t = t === uncurry T.append (T.breakOn s t)
+tl_breakOn_empty t = expectFailure $ total $ TL.breakOn mempty t
+tl_breakOn_id (NotEmpty s) t = t === uncurry TL.append (TL.breakOn s t)
+
 t_breakOn_start (NotEmpty s) t =
     let (k,m) = T.breakOn s t
     in k `T.isPrefixOf` t && (T.null m || s `T.isPrefixOf` m)
@@ -153,12 +152,17 @@ t_findContains = \(Sqrt (NotEmpty s)) ->
 tl_findContains = \(Sqrt (NotEmpty s)) -> all (TL.isPrefixOf s . snd) .
     TL.breakOnAll s . TL.intercalate s
 sl_filterCount c  = (L.genericLength . L.filter (==c)) `eqP` SL.countChar c
-t_findCount s     = (L.length . T.breakOnAll s) `eq` T.count s
-tl_findCount s    = (L.genericLength . TL.breakOnAll s) `eq` TL.count s
+t_findCount_empty t = expectFailure $ total $ T.breakOnAll mempty t
+t_findCount (NotEmpty s) t = L.length (T.breakOnAll s t) === T.count s t
+tl_findCount_empty t = expectFailure $ total $ TL.breakOnAll mempty t
+tl_findCount (NotEmpty s) t = L.length (TL.breakOnAll s t) === fromIntegral (TL.count s t)
 
-t_splitOn_split s  = (T.splitOn s `eq` Slow.splitOn s) . T.intercalate s . unSqrt
-tl_splitOn_split s = ((TL.splitOn (TL.fromStrict s) . TL.fromStrict) `eq`
-                      (map TL.fromStrict . T.splitOn s)) . T.intercalate s . unSqrt
+t_splitOn_empty t = expectFailure $ total $ T.splitOn mempty t
+t_splitOn_split (NotEmpty s) (Sqrt ts) = T.splitOn s t === Slow.splitOn s t
+    where t = T.intercalate s ts
+tl_splitOn_empty t = expectFailure $ total $ TL.splitOn mempty t
+tl_splitOn_split (NotEmpty s) (Sqrt ts) = TL.splitOn (TL.fromStrict s) (TL.fromStrict t) === map TL.fromStrict (T.splitOn s t)
+    where t = T.intercalate s ts
 t_splitOn_i (NotEmpty t)  = id `eq` (T.intercalate t . T.splitOn t)
 tl_splitOn_i (NotEmpty t) = id `eq` (TL.intercalate t . TL.splitOn t)
 
@@ -288,7 +292,9 @@ testSubstrings =
       testProperty "tl_splitAt" tl_splitAt,
       testProperty "t_span" t_span,
       testProperty "tl_span" tl_span,
+      testProperty "t_breakOn_empty" t_breakOn_empty,
       testProperty "t_breakOn_id" t_breakOn_id,
+      testProperty "tl_breakOn_empty" tl_breakOn_empty,
       testProperty "tl_breakOn_id" tl_breakOn_id,
       testProperty "t_breakOn_start" t_breakOn_start,
       testProperty "tl_breakOn_start" tl_breakOn_start,
@@ -312,9 +318,13 @@ testSubstrings =
       testProperty "t_findContains" t_findContains,
       testProperty "tl_findContains" tl_findContains,
       testProperty "sl_filterCount" sl_filterCount,
+      testProperty "t_findCount_empty" t_findCount_empty,
       testProperty "t_findCount" t_findCount,
+      testProperty "tl_findCount_empty" tl_findCount_empty,
       testProperty "tl_findCount" tl_findCount,
+      testProperty "t_splitOn_empty" t_splitOn_empty,
       testProperty "t_splitOn_split" t_splitOn_split,
+      testProperty "tl_splitOn_empty" tl_splitOn_empty,
       testProperty "tl_splitOn_split" tl_splitOn_split,
       testProperty "t_splitOn_i" t_splitOn_i,
       testProperty "tl_splitOn_i" tl_splitOn_i,
