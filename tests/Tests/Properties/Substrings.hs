@@ -12,7 +12,6 @@ import Test.QuickCheck
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
 import Tests.QuickCheckUtils
-import Tests.Utils (QEq(..))
 import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.Text.Internal.Fusion as S
@@ -180,7 +179,7 @@ t_chunksOf_same_lengths k = conjoin . map ((===k) . T.length) . ini . T.chunksOf
   where ini [] = []
         ini xs = init xs
 
-t_chunksOf_length k t = len ==== T.length t .||. property (k <= 0 && len == 0)
+t_chunksOf_length k t = len === T.length t .||. property (k <= 0 && len == 0)
   where len = L.sum . L.map T.length $ T.chunksOf k t
 
 tl_chunksOf k = T.chunksOf k `eq` (map (T.concat . TL.toChunks) .

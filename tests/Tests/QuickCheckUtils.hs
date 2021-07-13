@@ -161,11 +161,11 @@ unpack2 :: (Stringy s) => (s,s) -> (String,String)
 unpack2 = unpackS *** unpackS
 
 -- Do two functions give the same answer?
-eq :: QEq a => (t -> a) -> (t -> a) -> t -> Property
+eq :: (Eq a, Show a) => (t -> a) -> (t -> a) -> t -> Property
 eq a b s  = a s =^= b s
 
 -- What about with the RHS packed?
-eqP :: (QEq a, Stringy s) =>
+eqP :: (Eq a, Show a, Stringy s) =>
        (String -> a) -> (s -> a) -> String -> Word8 -> Property
 eqP f g s w  = counterexample "orig" (f s =^= g t) .&&.
                counterexample "mini" (f s =^= g mini) .&&.
@@ -180,7 +180,7 @@ eqP f g s w  = counterexample "orig" (f s =^= g t) .&&.
             | otherwise = n `mod` l
           n             = fromIntegral w
 
-eqPSqrt :: (QEq a, Stringy s) =>
+eqPSqrt :: (Eq a, Show a, Stringy s) =>
        (String -> a) -> (s -> a) -> Sqrt String -> Word8 -> Property
 eqPSqrt f g s = eqP f g (unSqrt s)
 

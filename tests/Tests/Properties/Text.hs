@@ -15,7 +15,6 @@ import Test.QuickCheck
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
 import Tests.QuickCheckUtils
-import Tests.Utils (QEq(..))
 import qualified Data.Char as C
 import qualified Data.List as L
 import qualified Data.Text as T
@@ -31,10 +30,10 @@ t_pack_unpack       = (T.unpack . T.pack) `eq` id
 tl_pack_unpack      = (TL.unpack . TL.pack) `eq` id
 t_stream_unstream   = (S.unstream . S.stream) `eq` id
 tl_stream_unstream  = (SL.unstream . SL.stream) `eq` id
-t_reverse_stream t  = (S.reverse . S.reverseStream) t ==== t
-t_singleton c       = [c] ==== (T.unpack . T.singleton) c
-tl_singleton c      = [c] ==== (TL.unpack . TL.singleton) c
-tl_unstreamChunks x = f 11 x ==== f 1000 x
+t_reverse_stream t  = (S.reverse . S.reverseStream) t === t
+t_singleton c       = [c] === (T.unpack . T.singleton) c
+tl_singleton c      = [c] === (TL.unpack . TL.singleton) c
+tl_unstreamChunks x = f 11 x === f 1000 x
     where f n = SL.unstreamChunks n . S.streamList
 tl_chunk_unchunk    = (TL.fromChunks . TL.toChunks) `eq` id
 tl_from_to_strict   = (TL.fromStrict . TL.toStrict) `eq` id
@@ -220,7 +219,7 @@ tl_indices (NotEmpty s) = lazyIndices s `eq` S.indices s
           conc = T.concat . TL.toChunks
 t_indices_occurs = \(Sqrt (NotEmpty t)) ts ->
     let s = T.intercalate t ts
-    in Slow.indices t s ==== T.indices t s
+    in Slow.indices t s === T.indices t s
 
 -- Make a stream appear shorter than it really is, to ensure that
 -- functions that consume inaccurately sized streams behave

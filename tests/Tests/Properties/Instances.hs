@@ -11,7 +11,6 @@ import Test.QuickCheck
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
 import Tests.QuickCheckUtils
-import Tests.Utils (QEq(..))
 import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.Text.Internal.Fusion.Common as S
@@ -39,8 +38,8 @@ t_mappend s       = mappend s`eqP` (unpackS . mappend (T.pack s))
 tl_mappend s      = mappend s`eqP` (unpackS . mappend (TL.pack s))
 t_mconcat         = (mconcat . unSqrt) `eq` (unpackS . mconcat . L.map T.pack . unSqrt)
 tl_mconcat        = (mconcat . unSqrt) `eq` (unpackS . mconcat . L.map TL.pack . unSqrt)
-t_mempty          = mempty ==== (unpackS (mempty :: T.Text))
-tl_mempty         = mempty ==== (unpackS (mempty :: TL.Text))
+t_mempty          = mempty === (unpackS (mempty :: T.Text))
+tl_mempty         = mempty === (unpackS (mempty :: TL.Text))
 t_IsString        = fromString  `eqP` (T.unpack . fromString)
 tl_IsString       = fromString  `eqP` (TL.unpack . fromString)
 
