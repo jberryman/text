@@ -10,8 +10,9 @@ module Tests.Properties.Folds
 import Control.Arrow (second)
 import Data.Word (Word8, Word16)
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.QuickCheck (testProperty, Small(..), (===), applyFun, applyFun2)
+import Test.Tasty.QuickCheck (testProperty, Small(..), applyFun, applyFun2)
 import Tests.QuickCheckUtils
+import Tests.Utils (QEq(..))
 import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.Text.Internal.Fusion as S
@@ -118,13 +119,13 @@ tl_repeat (Small n) = L.replicate n `eq` (unpackS . TL.take (fromIntegral n) . T
 s_replicate (Small n) = (L.concat . L.replicate n) `eq` (unpackS . S.replicateI (fromIntegral n) . packS)
 
 t_replicate_char (Small n) c =
-    L.replicate n c === T.unpack (T.replicate n (T.singleton c))
+    L.replicate n c ==== T.unpack (T.replicate n (T.singleton c))
 tl_replicate_char (Small n) c =
-    L.replicate n c === TL.unpack (TL.replicate (fromIntegral n) (TL.singleton c))
+    L.replicate n c ==== TL.unpack (TL.replicate (fromIntegral n) (TL.singleton c))
 t_length_replicate_char (Small n) c =
-    L.length (L.replicate n c) === T.length (T.replicate n (T.singleton c))
+    L.length (L.replicate n c) ==== T.length (T.replicate n (T.singleton c))
 tl_length_replicate_char (Small n) c =
-    L.genericLength (L.replicate n c) === TL.length (TL.replicate (fromIntegral n) (TL.singleton c))
+    L.genericLength (L.replicate n c) ==== TL.length (TL.replicate (fromIntegral n) (TL.singleton c))
 
 t_replicate (Small n) =
     (L.concat . L.replicate n) `eqPSqrt` (unpackS . T.replicate n)

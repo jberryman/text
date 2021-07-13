@@ -36,22 +36,22 @@ eval f a b = unsafePerformIO $
   (Just <$> evaluate (f a b)) `E.catch` (\(_::SomeException) -> pure Nothing)
 
 t_mul32 :: Int32 -> Int32 -> Property
-t_mul32 a b = mulRef a b === eval mul32 a b
+t_mul32 a b = mulRef a b ==== eval mul32 a b
 
 t_mul64 :: Int64 -> Int64 -> Property
-t_mul64 a b = mulRef a b === eval mul64 a b
+t_mul64 a b = mulRef a b ==== eval mul64 a b
 
 t_mul :: Int -> Int -> Property
-t_mul a b = mulRef a b === eval mul a b
+t_mul a b = mulRef a b ==== eval mul a b
 
 -- Misc.
 
 t_dropWord8 m t = dropWord8 m t `T.isSuffixOf` t
 t_takeWord8 m t = takeWord8 m t `T.isPrefixOf` t
-t_take_drop_8 (Small n) t = T.append (takeWord8 n t) (dropWord8 n t) === t
-t_use_from t = ioProperty $ (==t) <$> useAsPtr t fromPtr
+t_take_drop_8 (Small n) t = T.append (takeWord8 n t) (dropWord8 n t) ==== t
+t_use_from t = ioProperty $ (====t) <$> useAsPtr t fromPtr
 
-t_copy t = T.copy t === t
+t_copy t = T.copy t ==== t
 
 -- Input and output.
 

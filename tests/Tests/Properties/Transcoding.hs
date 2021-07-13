@@ -16,6 +16,7 @@ import Test.QuickCheck.Property (Property(..))
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
 import Tests.QuickCheckUtils
+import Tests.Utils (QEq(..))
 import qualified Control.Exception as Exception
 import qualified Data.Bits as Bits (shiftL, shiftR)
 import qualified Data.ByteString as B
@@ -28,9 +29,9 @@ import qualified Data.Text.Encoding.Error as E
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as EL
 
-t_ascii t    = E.decodeASCII (E.encodeUtf8 a) === a
+t_ascii t    = E.decodeASCII (E.encodeUtf8 a) ==== a
     where a  = T.map (\c -> chr (ord c `mod` 128)) t
-tl_ascii t   = EL.decodeASCII (EL.encodeUtf8 a) === a
+tl_ascii t   = EL.decodeASCII (EL.encodeUtf8 a) ==== a
     where a  = TL.map (\c -> chr (ord c `mod` 128)) t
 
 t_latin1     = E.decodeLatin1 `eq` (T.pack . BC.unpack)
@@ -64,7 +65,7 @@ t_utf8_undecoded t =
   let b = E.encodeUtf8 t
       ls = concatMap (leftover . E.encodeUtf8 . T.singleton) . T.unpack $ t
       leftover = (++ [B.empty]) . init . tail . B.inits
-  in (map snd . feedChunksOf 1 E.streamDecodeUtf8) b === ls
+  in (map snd . feedChunksOf 1 E.streamDecodeUtf8) b ==== ls
 
 data InvalidUtf8 = InvalidUtf8
   { iu8Prefix  :: T.Text
@@ -167,7 +168,7 @@ decodeL = E.decodeUtf8With E.lenientDecode
 -- and it should behave the same as decoding of strict bytestrings.
 t_decode_utf8_lenient :: Property
 t_decode_utf8_lenient = forAllShrinkShow arbitrary shrink (show . BL.toChunks) $ \bs ->
-    decodeLL bs === (TL.fromStrict . decodeL . B.concat . BL.toChunks) bs
+    decodeLL bs ==== (TL.fromStrict . decodeL . B.concat . BL.toChunks) bs
 
 -- See http://unicode.org/faq/utf_bom.html#gen8
 -- A sequence such as <110xxxxx2 0xxxxxxx2> is illegal ...
@@ -176,21 +177,21 @@ t_decode_utf8_lenient = forAllShrinkShow arbitrary shrink (show . BL.toChunks) $
 -- (e.g. filter it out or replace by 0xFFFD) ...
 -- ... and continue processing at the second byte 0xxxxxxx2
 t_decode_with_error2 =
-  E.decodeUtf8With (\_ _ -> Just 'x') (B.pack [0xC2, 97]) === "xa"
+  E.decodeUtf8With (\_ _ -> Just 'x') (B.pack [0xC2, 97]) ==== "xa"
 t_decode_with_error3 =
-  E.decodeUtf8With (\_ _ -> Just 'x') (B.pack [0xE0, 97, 97]) === "xaa"
+  E.decodeUtf8With (\_ _ -> Just 'x') (B.pack [0xE0, 97, 97]) ==== "xaa"
 t_decode_with_error4 =
-  E.decodeUtf8With (\_ _ -> Just 'x') (B.pack [0xF0, 97, 97, 97]) === "xaaa"
+  E.decodeUtf8With (\_ _ -> Just 'x') (B.pack [0xF0, 97, 97, 97]) ==== "xaaa"
 
 t_decode_with_error2' =
   case E.streamDecodeUtf8With (\_ _ -> Just 'x') (B.pack [0xC2, 97]) of
-    E.Some x _ _ -> x === "xa"
+    E.Some x _ _ -> x ==== "xa"
 t_decode_with_error3' =
   case E.streamDecodeUtf8With (\_ _ -> Just 'x') (B.pack [0xC2, 97, 97]) of
-    E.Some x _ _ -> x === "xaa"
+    E.Some x _ _ -> x ==== "xaa"
 t_decode_with_error4' =
   case E.streamDecodeUtf8With (\_ _ -> Just 'x') (B.pack [0xC2, 97, 97, 97]) of
-    E.Some x _ _ -> x === "xaaa"
+    E.Some x _ _ -> x ==== "xaaa"
 
 t_infix_concat bs1 text bs2 =
   forAll (Blind <$> genDecodeErr Replace) $ \(Blind onErr) ->
