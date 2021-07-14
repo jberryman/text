@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples, TypeFamilies #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE UnliftedFFITypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -207,7 +208,7 @@ import Control.DeepSeq (NFData(rnf))
 import Control.Exception (assert)
 import GHC.Stack (HasCallStack)
 #endif
-import Data.Bits ((.&.))
+import Data.Bits ((.&.), shiftL)
 import Data.Char (isSpace, isAscii, ord)
 import Data.Data (Data(gfoldl, toConstr, gunfold, dataTypeOf), constrIndex,
                   Constr, mkConstr, DataType, mkDataType, Fixity(Prefix))
@@ -231,7 +232,7 @@ import Data.Text.Internal.Unsafe.Char (unsafeWrite)
 import Data.Text.Show (singleton, unpack, unpackCString#)
 import qualified Prelude as P
 import Data.Text.Unsafe (Iter(..), iter, iter_, lengthWord8, reverseIter,
-                         reverseIter_, unsafeHead, unsafeTail, unsafeDupablePerformIO)
+                         reverseIter_, unsafeHead, unsafeTail, unsafeDupablePerformIO, iterArray, reverseIterArray)
 import Data.Text.Internal.Search (indices)
 #if defined(__HADDOCK__)
 import Data.ByteString (ByteString)
@@ -243,6 +244,7 @@ import Foreign.C.Types
 import GHC.Base (eqInt, neInt, gtInt, geInt, ltInt, leInt, ByteArray#)
 import qualified GHC.Exts as Exts
 import Text.Printf (PrintfArg, formatArg, formatString)
+import GHC.Exts
 
 -- $setup
 -- >>> import Data.Text
@@ -1014,9 +1016,30 @@ scanr1 f t | null t    = empty
 -- function to each element of a 'Text', passing an accumulating
 -- parameter from left to right, and returns a final 'Text'.  Performs
 -- replacement on invalid scalar values.
-mapAccumL :: (a -> Char -> (a,Char)) -> a -> Text -> (a, Text)
-mapAccumL f z0 = S.mapAccumL g z0 . stream
-    where g a b = second safe (f a b)
+mapAccumL :: forall a. (a -> Char -> (a, Char)) -> a -> Text -> (a, Text)
+mapAccumL f z0 = go
+  where
+    go (Text src (I# o) (I# l)) = runST $ do
+      marr <- A.new (I# l + 4)
+      outer marr (l +# 4#) o 0# z0
+      where
+        outer :: forall s. A.MArray s -> Int# -> Int# -> Int# -> a -> ST s (a, Text)
+        outer !dst !dstLen = inner
+          where
+            inner !srcOff !dstOff !z
+              | I# srcOff >= I# l + I# o = do
+                A.shrinkM dst (I# dstOff)
+                arr <- A.unsafeFreeze dst
+                return (z, Text arr 0 (I# dstOff))
+              | I# dstOff + 4 > I# dstLen = do
+                let !(I# dstLen') = I# dstLen + (I# l + I# o) - I# srcOff + 4
+                dst' <- A.resizeM dst (I# dstLen')
+                outer dst' dstLen' srcOff dstOff z
+              | otherwise = do
+                let !(Iter c (I# d)) = iterArray src (I# srcOff)
+                    (z', c') = f z c
+                I# d' <- unsafeWrite dst (I# dstOff) (safe c')
+                inner (srcOff +# d) (dstOff +# d') z'
 {-# INLINE mapAccumL #-}
 
 -- | The 'mapAccumR' function behaves like a combination of 'map' and
@@ -1025,9 +1048,35 @@ mapAccumL f z0 = S.mapAccumL g z0 . stream
 -- returning a final value of this accumulator together with the new
 -- 'Text'.
 -- Performs replacement on invalid scalar values.
-mapAccumR :: (a -> Char -> (a,Char)) -> a -> Text -> (a, Text)
-mapAccumR f z0 = second reverse . S.mapAccumL g z0 . reverseStream
-    where g a b = second safe (f a b)
+mapAccumR :: forall a. (a -> Char -> (a, Char)) -> a -> Text -> (a, Text)
+mapAccumR f z0 = go
+  where
+    go (Text src (I# o) (I# l)) = runST $ do
+      marr <- A.new (I# l + 4)
+      outer marr (l +# o -# 1#) (l +# 4# -# 1#) z0
+      where
+        outer :: forall s. A.MArray s -> Int# -> Int# -> a -> ST s (a, Text)
+        outer !dst = inner
+          where
+            inner !srcOff !dstOff !z
+              | I# srcOff < I# o = do
+                I# dstLen <- A.getSizeofMArray dst
+                arr <- A.unsafeFreeze dst
+                return (z, Text arr (I# dstOff + 1) (I# dstLen - I# dstOff - 1))
+              | I# dstOff < 3 = do
+                I# dstLen <- A.getSizeofMArray dst
+                let !(I# dstLen') = I# dstLen + (I# srcOff - I# o) + 4
+                dst' <- A.new (I# dstLen')
+                A.copyM dst' (I# dstLen' - I# dstLen) dst 0 (I# dstLen)
+                outer dst' srcOff (dstOff +# dstLen' -# dstLen) z
+              | otherwise = do
+                let !(c, I# d) = reverseIterArray src (I# srcOff)
+                    (z', c') = f z c
+                    c'' = safe c'
+                    !(I# d') = utf8Length c''
+                    dstOff' = dstOff -# d'
+                _ <- unsafeWrite dst (I# dstOff' + 1) c''
+                inner (srcOff +# d) dstOff' z'
 {-# INLINE mapAccumR #-}
 
 -- -----------------------------------------------------------------------------
