@@ -209,6 +209,7 @@ resizeM :: MArray s -> Int -> ST s (MArray s)
 resizeM ma@MArray{..} i@(I# i#) = ST $ \s1# ->
   case resizeMutableByteArray# maBA i# s1# of
     (# s2#, newArr #) -> (# s2#, MArray newArr #)
+{-# INLINE resizeM #-}
 
 shrinkM ::
 #if defined(ASSERTS)
