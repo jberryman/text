@@ -11,6 +11,7 @@ module SpecialCasing
     ) where
 
 import Arsec
+import Data.Bits
 
 data SpecialCasing = SC { scComments :: [Comment], scCasing :: [Case] }
                    deriving (Show)
@@ -42,12 +43,13 @@ mapSC :: String -> (Case -> String) -> (Char -> Char) -> SpecialCasing
 mapSC which access twiddle (SC _ ms) =
     typ ++ (map nice . filter p $ ms) ++ [last]
   where
-    typ = [which ++ "Mapping :: forall s. Char -> s -> Step (CC s) Char"
-           ,"{-# NOINLINE " ++ which ++ "Mapping #-}"]
-    last = which ++ "Mapping c s = Yield (to" ++ ucFirst which ++ " c) (CC s '\\0' '\\0')"
-    nice c = "-- " ++ name c ++ "\n" ++
-             which ++ "Mapping " ++ showC (code c) ++ " s = Yield " ++ x ++ " (CC s " ++ y ++ " " ++ z ++ ")"
-       where [x,y,z] = (map showC . take 3) (access c ++ repeat '\0')
+    typ = [which ++ "Mapping :: Char# -> _"
+           ,"{-# NOINLINE " ++ which ++ "Mapping #-}"
+           ,which ++ "Mapping = \\case"]
+    last = "  _ -> unI64 0"
+    nice c = "  -- " ++ name c ++ "\n" ++
+             "  " ++ showC (code c) ++ "# -> unI64 " ++ show (ord x + (ord y `shiftL` 21) + (ord z `shiftL` 42))
+       where x:y:z:_ = access c ++ repeat '\0'
     p c = [k] /= a && a /= [twiddle k] && null (conditions c)
         where a = access c
               k = code c

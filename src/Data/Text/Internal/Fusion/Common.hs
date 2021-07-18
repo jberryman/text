@@ -1,4 +1,5 @@
-{-# LANGUAGE BangPatterns, MagicHash, Rank2Types #-}
+{-# LANGUAGE BangPatterns, MagicHash, Rank2Types, PartialTypeSignatures #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 -- |
 -- Module      : Data.Text.Internal.Fusion.Common
 -- Copyright   : (c) Bryan O'Sullivan 2009, 2012
@@ -124,13 +125,16 @@ import Prelude (Bool(..), Char, Eq(..), Int, Integral, Maybe(..),
                 (&&), fromIntegral, otherwise)
 import qualified Data.List as L
 import qualified Prelude as P
+import Data.Bits (shiftL, shiftR, (.&.))
 import Data.Char (isLetter, isSpace)
-import Data.Int (Int64)
+import qualified Data.Char
+import GHC.Int (Int64(..))
 import Data.Text.Internal.Encoding.Utf8 (chr2, chr3, chr4, utf8LengthByLeader)
 import Data.Text.Internal.Fusion.Types
 import Data.Text.Internal.Fusion.CaseMapping (foldMapping, lowerMapping, titleMapping,
                                      upperMapping)
 import Data.Text.Internal.Fusion.Size
+import GHC.Exts (Char(..), Char#, chr#)
 import GHC.Prim (Addr#, indexWord8OffAddr#)
 import GHC.Types (Int(..))
 import Data.Text.Internal.Unsafe.Char (unsafeChr8)
@@ -478,17 +482,28 @@ intersperse c (Stream next0 s0 len) = Stream next (I1 s0) (len + unknownSize)
 -- characters.
 
 -- | Map a 'Stream' through the given case-mapping function.
-caseConvert :: (forall s. Char -> s -> Step (CC s) Char)
+caseConvert :: (Char# -> _)
+            -> (Char -> Char)
             -> Stream Char -> Stream Char
-caseConvert remap (Stream next0 s0 len) =
-    Stream next (CC s0 '\0' '\0') (len `unionSize` (3*len))
+caseConvert remap remapDef (Stream next0 s0 len) =
+    Stream next (CC s0 0) (len `unionSize` (3*len))
   where
-    next (CC s '\0' _) =
+    next (CC s 0) =
         case next0 s of
           Done       -> Done
-          Skip s'    -> Skip (CC s' '\0' '\0')
-          Yield c s' -> remap c s'
-    next (CC s a b)  =  Yield a (CC s b '\0')
+          Skip s'    -> Skip (CC s' 0)
+          Yield c@(C# c#) s' -> case I64# (remap c#) of
+            0 -> Yield (remapDef c) (CC s' 0)
+            ab -> let (a, b) = chopOffChar ab in
+              Yield a (CC s' b)
+    next (CC s ab) = let (a, b) = chopOffChar ab in Yield a (CC s b)
+
+chopOffChar :: Int64 -> (Char, Int64)
+chopOffChar ab = (chr a, ab `shiftR` 21)
+  where
+    chr (I# n) = C# (chr# n)
+    mask = (1 `shiftL` 21) - 1
+    a = fromIntegral $ ab .&. mask
 
 -- | /O(n)/ Convert a string to folded case.  This function is mainly
 -- useful for performing caseless (or case insensitive) string
@@ -505,7 +520,7 @@ caseConvert remap (Stream next0 s0 len) =
 -- case folded to the Greek small letter letter mu (U+03BC) instead of
 -- itself.
 toCaseFold :: Stream Char -> Stream Char
-toCaseFold = caseConvert foldMapping
+toCaseFold = caseConvert foldMapping Data.Char.toLower
 {-# INLINE [0] toCaseFold #-}
 
 -- | /O(n)/ Convert a string to upper case, using simple case
@@ -517,7 +532,7 @@ toCaseFold = caseConvert foldMapping
 --
 -- @ 'Data.Text.Internal.unstream' . 'toUpper' . 'Data.Text.Internal.Fusion.stream' = 'Data.Text.toUpper' @
 toUpper :: Stream Char -> Stream Char
-toUpper = caseConvert upperMapping
+toUpper = caseConvert upperMapping Data.Char.toUpper
 {-# INLINE [0] toUpper #-}
 
 -- | /O(n)/ Convert a string to lower case, using simple case
@@ -530,7 +545,7 @@ toUpper = caseConvert upperMapping
 --
 -- @ 'Data.Text.Internal.unstream' . 'toLower' . 'Data.Text.Internal.Fusion.stream' = 'Data.Text.toLower' @
 toLower :: Stream Char -> Stream Char
-toLower = caseConvert lowerMapping
+toLower = caseConvert lowerMapping Data.Char.toLower
 {-# INLINE [0] toLower #-}
 
 -- | /O(n)/ Convert a string to title case, using simple case
@@ -556,20 +571,25 @@ toLower = caseConvert lowerMapping
 --
 -- @ 'Data.Text.Internal.unstream' . 'toTitle' . 'Data.Text.Internal.Fusion.stream' = 'Data.Text.toTitle' @
 toTitle :: Stream Char -> Stream Char
-toTitle (Stream next0 s0 len) = Stream next (CC (False :*: s0) '\0' '\0') (len + unknownSize)
+toTitle (Stream next0 s0 len) = Stream next (CC (False :*: s0) 0) (len + unknownSize)
   where
-    next (CC (letter :*: s) '\0' _) =
+    next (CC (letter :*: s) 0) =
       case next0 s of
         Done            -> Done
-        Skip s'         -> Skip (CC (letter :*: s') '\0' '\0')
-        Yield c s'
-          | nonSpace    -> if letter
-                           then lowerMapping c (nonSpace :*: s')
-                           else titleMapping c (letter' :*: s')
-          | otherwise   -> Yield c (CC (letter' :*: s') '\0' '\0')
+        Skip s'         -> Skip (CC (letter :*: s') 0)
+        Yield c@(C# c#) s'
+          | nonSpace, letter -> case I64# (lowerMapping c#) of
+            0 -> Yield (Data.Char.toLower c) (CC (nonSpace :*: s') 0)
+            ab -> let (a, b) = chopOffChar ab in
+              Yield a (CC (nonSpace :*: s') b)
+          | nonSpace    ->  case I64# (titleMapping c#) of
+            0 -> Yield (Data.Char.toTitle c) (CC (letter' :*: s') 0)
+            ab -> let (a, b) = chopOffChar ab in
+              Yield a (CC (letter' :*: s') b)
+          | otherwise   -> Yield c (CC (letter' :*: s') 0)
           where nonSpace = P.not (isSpace c)
                 letter'  = isLetter c
-    next (CC s a b)      = Yield a (CC s b '\0')
+    next (CC s ab) = let (a, b) = chopOffChar ab in Yield a (CC s b)
 {-# INLINE [0] toTitle #-}
 
 data Justify i s = Just1 !i !s
