@@ -35,14 +35,19 @@ parseCF :: FilePath -> IO (Either ParseError CaseFolding)
 parseCF name = parse entries name <$> readFile name
 
 mapCF :: CaseFolding -> [String]
-mapCF (CF _ ms) = typ ++ (map nice . filter p $ ms) ++ [last]
+mapCF (CF _ ms) = typ ++ map printUnusual ms' ++ map printUsual usual ++ [last]
   where
+    ms' = filter p ms
+    p f = status f `elem` "CF" &&
+          mapping f /= [toLower (code f)]
+    unusual = map code ms'
+    usual = filter (\c -> toLower c /= c && c `notElem` unusual) [minBound..maxBound]
+
     typ = ["foldMapping :: Char# -> _"
            ,"{-# NOINLINE foldMapping #-}"
            ,"foldMapping = \\case"]
     last = "  _ -> unI64 0"
-    nice c = "  -- " ++ name c ++ "\n" ++
+    printUnusual c = "  -- " ++ name c ++ "\n" ++
              "  " ++ showC (code c) ++ "# -> unI64 "  ++ show (ord x + (ord y `shiftL` 21) + (ord z `shiftL` 42))
        where x:y:z:_ = mapping c ++ repeat '\0'
-    p f = status f `elem` "CF" &&
-          mapping f /= [toLower (code f)]
+    printUsual c = "  " ++ showC c ++ "# -> unI64 " ++ show (ord (toLower c))

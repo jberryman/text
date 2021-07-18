@@ -127,7 +127,6 @@ import qualified Data.List as L
 import qualified Prelude as P
 import Data.Bits (shiftL, shiftR, (.&.))
 import Data.Char (isLetter, isSpace)
-import qualified Data.Char
 import GHC.Int (Int64(..))
 import Data.Text.Internal.Encoding.Utf8 (chr2, chr3, chr4, utf8LengthByLeader)
 import Data.Text.Internal.Fusion.Types
@@ -483,9 +482,8 @@ intersperse c (Stream next0 s0 len) = Stream next (I1 s0) (len + unknownSize)
 
 -- | Map a 'Stream' through the given case-mapping function.
 caseConvert :: (Char# -> _)
-            -> (Char -> Char)
             -> Stream Char -> Stream Char
-caseConvert remap remapDef (Stream next0 s0 len) =
+caseConvert remap (Stream next0 s0 len) =
     Stream next (CC s0 0) (len `unionSize` (3*len))
   where
     next (CC s 0) =
@@ -493,7 +491,7 @@ caseConvert remap remapDef (Stream next0 s0 len) =
           Done       -> Done
           Skip s'    -> Skip (CC s' 0)
           Yield c@(C# c#) s' -> case I64# (remap c#) of
-            0 -> Yield (remapDef c) (CC s' 0)
+            0 -> Yield c (CC s' 0)
             ab -> let (a, b) = chopOffChar ab in
               Yield a (CC s' b)
     next (CC s ab) = let (a, b) = chopOffChar ab in Yield a (CC s b)
@@ -520,7 +518,7 @@ chopOffChar ab = (chr a, ab `shiftR` 21)
 -- case folded to the Greek small letter letter mu (U+03BC) instead of
 -- itself.
 toCaseFold :: Stream Char -> Stream Char
-toCaseFold = caseConvert foldMapping Data.Char.toLower
+toCaseFold = caseConvert foldMapping
 {-# INLINE [0] toCaseFold #-}
 
 -- | /O(n)/ Convert a string to upper case, using simple case
@@ -532,7 +530,7 @@ toCaseFold = caseConvert foldMapping Data.Char.toLower
 --
 -- @ 'Data.Text.Internal.unstream' . 'toUpper' . 'Data.Text.Internal.Fusion.stream' = 'Data.Text.toUpper' @
 toUpper :: Stream Char -> Stream Char
-toUpper = caseConvert upperMapping Data.Char.toUpper
+toUpper = caseConvert upperMapping
 {-# INLINE [0] toUpper #-}
 
 -- | /O(n)/ Convert a string to lower case, using simple case
@@ -545,7 +543,7 @@ toUpper = caseConvert upperMapping Data.Char.toUpper
 --
 -- @ 'Data.Text.Internal.unstream' . 'toLower' . 'Data.Text.Internal.Fusion.stream' = 'Data.Text.toLower' @
 toLower :: Stream Char -> Stream Char
-toLower = caseConvert lowerMapping Data.Char.toLower
+toLower = caseConvert lowerMapping
 {-# INLINE [0] toLower #-}
 
 -- | /O(n)/ Convert a string to title case, using simple case
@@ -579,11 +577,11 @@ toTitle (Stream next0 s0 len) = Stream next (CC (False :*: s0) 0) (len + unknown
         Skip s'         -> Skip (CC (letter :*: s') 0)
         Yield c@(C# c#) s'
           | nonSpace, letter -> case I64# (lowerMapping c#) of
-            0 -> Yield (Data.Char.toLower c) (CC (nonSpace :*: s') 0)
+            0 -> Yield c (CC (nonSpace :*: s') 0)
             ab -> let (a, b) = chopOffChar ab in
               Yield a (CC (nonSpace :*: s') b)
           | nonSpace    ->  case I64# (titleMapping c#) of
-            0 -> Yield (Data.Char.toTitle c) (CC (letter' :*: s') 0)
+            0 -> Yield c (CC (letter' :*: s') 0)
             ab -> let (a, b) = chopOffChar ab in
               Yield a (CC (letter' :*: s') b)
           | otherwise   -> Yield c (CC (letter' :*: s') 0)
