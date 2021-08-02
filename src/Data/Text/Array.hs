@@ -34,6 +34,7 @@ module Data.Text.Array
     , copyI
     , empty
     , equal
+    , compare
     , run
     , run2
     , toList
@@ -57,7 +58,8 @@ import Foreign.C.Types (CInt(..))
 import GHC.Exts hiding (toList)
 import GHC.ST (ST(..), runST)
 import GHC.Word (Word8(..))
-import Prelude hiding (length, read)
+import qualified Prelude
+import Prelude hiding (length, read, compare)
 import qualified Language.Haskell.TH.Lib as TH
 import qualified Language.Haskell.TH.Syntax as TH
 
@@ -275,13 +277,23 @@ copyI (MArray dst#) dstOff@(I# dstOff#) (Array src#) (I# srcOff#) count@(I# coun
 
 -- | Compare portions of two arrays for equality.  No bounds checking
 -- is performed.
-equal :: Array                  -- ^ First
+equal :: Array -> Int -> Array -> Int -> Int -> Bool
+equal src1 off1 src2 off2 count = compareInternal src1 off1 src2 off2 count == 0
+{-# INLINE equal #-}
+
+-- | Compare portions of two arrays. No bounds checking is performed.
+compare :: Array -> Int -> Array -> Int -> Int -> Ordering
+compare src1 off1 src2 off2 count = compareInternal src1 off1 src2 off2 count `Prelude.compare` 0
+{-# INLINE compare #-}
+
+compareInternal
+      :: Array                  -- ^ First
       -> Int                    -- ^ Offset into first
       -> Array                  -- ^ Second
       -> Int                    -- ^ Offset into second
       -> Int                    -- ^ Count
-      -> Bool
-equal (Array src1#) (I# off1#) (Array src2#) (I# off2#) (I# count#) = i == 0
+      -> Int
+compareInternal (Array src1#) (I# off1#) (Array src2#) (I# off2#) (I# count#) = i
   where
 #if MIN_VERSION_base(4,11,0)
     i = I# (compareByteArrays# src1# off1# src2# off2# count#)
@@ -291,4 +303,4 @@ equal (Array src1#) (I# off1#) (Array src2#) (I# off2#) (I# count#) = i == 0
 foreign import ccall unsafe "_hs_text_memcmp" memcmp
     :: ByteArray# -> Int# -> ByteArray# -> Int# -> Int# -> IO CInt
 #endif
-{-# INLINE equal #-}
+{-# INLINE compareInternal #-}
