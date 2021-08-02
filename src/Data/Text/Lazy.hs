@@ -1407,10 +1407,23 @@ chunksOf k = go
 -- | /O(n)/ Breaks a 'Text' up into a list of 'Text's at
 -- newline 'Char's. The resulting strings do not contain newlines.
 lines :: Text -> [Text]
-lines Empty = []
-lines t = let (l,t') = break ((==) '\n') t
-          in l : if null t' then []
-                 else lines (tail t')
+lines = foldrChunks go []
+  where
+    go :: T.Text -> [Text] -> [Text]
+    go t@(T.Text arr off len) xxs = case xxs of
+      [] -> P.map fromStrict lls
+      x : xs
+        | A.unsafeIndex arr (off + len - 1) == 0x0A ->
+          P.map fromStrict lls ++ xxs
+        | otherwise -> case lls of
+          [] -> xxs
+          l : ls -> inner l ls x xs
+      where
+        lls = T.lines t
+
+    inner :: T.Text -> [T.Text] -> Text -> [Text] -> [Text]
+    inner a [] b bs = chunk a b : bs
+    inner a (a' : as) b bs = fromStrict a : inner a' as b bs
 
 -- | /O(n)/ Breaks a 'Text' up into a list of words, delimited by 'Char's
 -- representing white space.
@@ -1421,7 +1434,7 @@ words = L.filter (not . null) . split isSpace
 -- | /O(n)/ Joins lines, after appending a terminating newline to
 -- each.
 unlines :: [Text] -> Text
-unlines = concat . L.map (`snoc` '\n')
+unlines = concat . L.foldr (\t acc -> t : singleton '\n' : acc) []
 {-# INLINE unlines #-}
 
 -- | /O(n)/ Joins words using single space characters.
