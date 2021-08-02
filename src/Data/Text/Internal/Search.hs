@@ -66,24 +66,21 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
         where c                = nindex i
               skp' | c == z    = nlen - i - 2
                    | otherwise = skp
+    !(mask :* skip) = buildTable 0 0 (nlen-2)
 
     swizzle :: Word8 -> Word64
     swizzle k = 1 `unsafeShiftL` (word8ToInt k .&. 0x3f)
 
     scan !i
         | i > ldiff                  = []
-        | c == z && candidateMatch 0 = i : scan (i + nlen)
+        | c == z && A.equal narr noff harr (hoff + i) nlen
+                                     = i : scan (i + nlen)
         | otherwise                  = scan (i + delta)
         where c = hindex (i + nlast)
-              candidateMatch !j
-                    | j >= nlast               = True
-                    | hindex (i+j) /= nindex j = False
-                    | otherwise                = candidateMatch (j+1)
               delta | nextInPattern = nlen + 1
                     | c == z        = skip + 1
                     | otherwise     = 1
                 where nextInPattern = mask .&. swizzle (hindex' (i+nlen)) == 0
-              !(mask :* skip)       = buildTable 0 0 (nlen-2)
     scanOne c = loop 0
         where loop !i | i >= hlen     = []
                       | hindex i == c = i : loop (i+1)
