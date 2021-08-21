@@ -64,7 +64,6 @@ extra-source-files:
     -- scripts/SpecialCasing.txt
     README.markdown
     changelog.md
-    include/*.h
     scripts/*.hs
     tests/literal-rule-test.sh
     tests/LiteralRuleTest.hs
@@ -79,7 +78,6 @@ library
                 cbits/is_ascii.c
                 cbits/measure_off.c
                 cbits/reverse.c
-  include-dirs: include
   hs-source-dirs: src
 
   exposed-modules:
