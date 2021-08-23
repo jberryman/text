@@ -23,6 +23,8 @@ module Data.Text.Internal.Unsafe.Char
     , unsafeChr8
     , unsafeChr32
     , unsafeWrite
+    -- * Deprecated, after UTF-8 transition
+    , unsafeChr
     ) where
 
 import Control.Monad.ST (ST)
@@ -38,6 +40,11 @@ import GHC.Stack (HasCallStack)
 ord :: Char -> Int
 ord (C# c#) = I# (ord# c#)
 {-# INLINE ord #-}
+
+{-# DEPRECATED unsafeChr "Use unsafeChr16 instead" #-}
+unsafeChr :: Word16 -> Char
+unsafeChr = unsafeChr16
+{-# INLINE unsafeChr #-}
 
 unsafeChr16 :: Word16 -> Char
 unsafeChr16 (W16# w#) = C# (chr# (word2Int# (word16ToWord# w#)))
