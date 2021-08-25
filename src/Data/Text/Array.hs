@@ -67,10 +67,10 @@ import qualified Language.Haskell.TH.Syntax as TH
 -- | Immutable array type.
 --
 -- The 'Array' constructor is exposed since @text-1.1.1.3@
-data Array = Array { aBA :: ByteArray# }
+data Array = Array8 { aBA8 :: ByteArray# }
 
 instance TH.Lift Array where
-  lift a@(Array a#) = TH.appE (TH.appE (TH.varE 'fromAddr) addr) (TH.lift l)
+  lift a@(Array8 a#) = TH.appE (TH.appE (TH.varE 'fromAddr) addr) (TH.lift l)
     where
       l = I# (sizeofByteArray# a#)
       addr = TH.litE $ TH.StringPrimL $ toList a 0 l
@@ -85,7 +85,7 @@ fromAddr addr (I# len) = runST $ ST $ \s1# ->
   case newByteArray# len s1# of
     (# s2#, marr #) -> case copyAddrToByteArray# addr marr 0# len s2# of
       s3# -> case unsafeFreezeByteArray# marr s3# of
-        (# s4#, arr #) -> (# s4#, Array arr #)
+        (# s4#, arr #) -> (# s4#, Array8 arr #)
 
 -- | Mutable array type, for use in the ST monad.
 --
@@ -134,7 +134,7 @@ tile marr tileLen = do
 unsafeFreeze :: MArray s -> ST s Array
 unsafeFreeze MArray{..} = ST $ \s1# ->
     case unsafeFreezeByteArray# maBA s1# of
-        (# s2#, ba# #) -> (# s2#, Array ba# #)
+        (# s2#, ba# #) -> (# s2#, Array8 ba# #)
 {-# INLINE unsafeFreeze #-}
 
 -- | Unchecked read of an immutable array.  May return garbage or
@@ -144,14 +144,14 @@ unsafeIndex ::
   HasCallStack =>
 #endif
   Array -> Int -> Word8
-unsafeIndex a@Array{..} i@(I# i#) =
+unsafeIndex a@Array8{..} i@(I# i#) =
 #if defined(ASSERTS)
-  let word8len = I# (sizeofByteArray# aBA) in
+  let word8len = I# (sizeofByteArray# aBA8) in
   if i < 0 || i >= word8len
   then error ("Data.Text.Array.unsafeIndex: bounds error, offset " ++ show i ++ ", length " ++ show word8len)
   else
 #endif
-  case indexWord8Array# aBA i# of r# -> (W8# r#)
+  case indexWord8Array# aBA8 i# of r# -> (W8# r#)
 {-# INLINE unsafeIndex #-}
 
 -- sizeofMutableByteArray# is deprecated, because it is unsafe in the presence of
@@ -266,7 +266,7 @@ copyI :: MArray s               -- ^ Destination
       -> Int                    -- ^ Source offset
       -> Int                    -- ^ Count
       -> ST s ()
-copyI (MArray dst#) dstOff@(I# dstOff#) (Array src#) (I# srcOff#) count@(I# count#)
+copyI (MArray dst#) dstOff@(I# dstOff#) (Array8 src#) (I# srcOff#) count@(I# count#)
 #if defined(ASSERTS)
   | count < 0 = error $
     "copyI: count must be >= 0, but got " ++ show count
@@ -310,7 +310,7 @@ compareInternal
       -> Int                    -- ^ Offset into second
       -> Int                    -- ^ Count
       -> Int
-compareInternal (Array src1#) (I# off1#) (Array src2#) (I# off2#) (I# count#) = i
+compareInternal (Array8 src1#) (I# off1#) (Array8 src2#) (I# off2#) (I# count#) = i
   where
 #if MIN_VERSION_base(4,11,0)
     i = I# (compareByteArrays# src1# off1# src2# off2# count#)

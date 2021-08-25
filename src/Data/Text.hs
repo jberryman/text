@@ -634,7 +634,7 @@ reverse ::
   HasCallStack =>
 #endif
   Text -> Text
-reverse (Text (A.Array ba) off len) = runST $ do
+reverse (Text (A.Array8 ba) off len) = runST $ do
     marr@(A.MArray mba) <- A.new len
     unsafeIOToST $ c_reverse mba ba (intToCSize off) (intToCSize len)
     brr <- A.unsafeFreeze marr
@@ -1140,7 +1140,7 @@ take n t@(Text arr off len)
 measureOff :: Int -> Text -> Int
 measureOff !n (Text arr off len) = if len == 0 then 0 else
   cSsizeToInt $ unsafeDupablePerformIO $
-    c_measure_off (A.aBA arr) (intToCSize off) (intToCSize len) (intToCSize n)
+    c_measure_off (A.aBA8 arr) (intToCSize off) (intToCSize len) (intToCSize n)
 
 foreign import ccall unsafe "_hs_text_measure_off" c_measure_off
     :: ByteArray# -> CSize -> CSize -> CSize -> IO CSsize
@@ -1723,7 +1723,7 @@ isAsciiSpace w = w .&. 0x50 == 0 && w < 0x80 && (w == 0x20 || w - 0x09 < 5)
 -- | /O(n)/ Breaks a 'Text' up into a list of 'Text's at
 -- newline 'Char's. The resulting strings do not contain newlines.
 lines :: Text -> [Text]
-lines (Text arr@(A.Array arr#) off len) = go off
+lines (Text arr@(A.Array8 arr#) off len) = go off
   where
     go !n
       | n >= len + off = []
